@@ -1,16 +1,22 @@
-from django.shortcuts import render
-from rest_framework import generics,status
+from rest_framework import generics,status,permissions
+from django.contrib.auth import get_user_model,login,logout
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.response import Response
 from .models import AttackTitan,MyHero,JujutsuKaisen
-from .serializers import AttackTitanSerializer,MyHeroSerializer,JujutsuKaisenSerializer
+from .serializers import AttackTitanSerializer,MyHeroSerializer,JujutsuKaisenSerializer,RegisterSerializer,UserSerializer,AuthTokenSerializer
 from rest_framework.views import APIView
-
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import render
-from rest_framework import generics, status
-from rest_framework.response import Response
-from .models import AttackTitan, MyHero, JujutsuKaisen
-from .serializers import AttackTitanSerializer, MyHeroSerializer, JujutsuKaisenSerializer
-from rest_framework.views import APIView
+from knox.views import LogoutView as KnoxLogoutView
+from knox.models import AuthToken
+from rest_framework.permissions import AllowAny
+from knox.auth import TokenAuthentication
+from django.contrib.auth import login
+from rest_framework.decorators import api_view
+from rest_framework import status
+from rest_framework.authtoken.serializers import AuthTokenSerializer
+from knox.views import LoginView as KnoxLoginView
+
 
 class AttackTitanListCreate(generics.ListCreateAPIView):
     queryset = AttackTitan.objects.all()
@@ -111,3 +117,32 @@ class JujutsuKaisenApiView(APIView):
         images = JujutsuKaisen.objects.all()   
         serializer = JujutsuKaisenSerializer(images, context = {'request':request}, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class RegisterView(generics.GenericAPIView) :
+    serializer_class = RegisterSerializer
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    def post(self,request,*args,**kwargs) :
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response ({
+            'user' : UserSerializer(user,context=self.get_serializer_context()).data,
+            'token' : AuthToken.objects.create(user)[1]
+        })
+    
+class LoginView(KnoxLoginView) :
+    permission_classes = (permissions.AllowAny,)
+    def post(self,request,format=None) :
+        serializer = AuthTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        login(request,user)
+
+        _, token = AuthToken.objects.create(user)
+        return Response({
+            'token' : token
+        },status=status.HTTP_200_OK)
+    
+class LogOutView(KnoxLogoutView) :
+    permission_classes = (IsAuthenticated,)
