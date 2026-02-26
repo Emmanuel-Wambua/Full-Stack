@@ -58,9 +58,10 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.8.1:3000",
+    "https://your-vercel-app.vercel.app",
 ]
+
+
 CORS_ALLOWED_CREDENTIALS = True
 
 ROOT_URLCONF = 'mycapstone.urls'
